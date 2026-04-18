@@ -1,0 +1,17 @@
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+coverage/
+.env
+.env.*
+frontend/.env
+frontend/.env.*
+!.env.example
+!frontend/.env.example
+*.log
+*.out.log
+*.err.log
+*.tsbuildinfo
+frontend/.vercel/
+.DS_Store

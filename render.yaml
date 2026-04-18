@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: fintrackr-api
+    runtime: node
+    rootDir: .
+    buildCommand: npm ci --include=dev && npm run backend:build
+    preDeployCommand: npm run prisma:migrate:deploy
+    startCommand: npm run backend:start
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: FRONTEND_ORIGINS
+        sync: false
+      - key: ALLOW_VERCEL_PREVIEWS
+        value: "true"
