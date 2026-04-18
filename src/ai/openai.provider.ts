@@ -11,6 +11,9 @@ export const openAiProvider: Provider = {
       return null;
     }
 
-    return new OpenAI({ apiKey });
+    return new OpenAI({
+      apiKey,
+      baseURL: 'https://openrouter.ai/api/v1',
+    });
   },
 };
