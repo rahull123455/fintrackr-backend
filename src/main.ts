@@ -10,13 +10,38 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  // ✅ FIXED CORS (WORKS WITH VERCEL + RENDER)
+  // ✅ FORCE CORS + PREFLIGHT FIX
   app.enableCors({
     origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: '*',
   });
 
-  // ✅ Validation
+  // 🔥 IMPORTANT: handle preflight manually (fixes your exact error)
+  app.use(
+    (
+      req: { method: string },
+      res: {
+        header: (arg0: string, arg1: string) => void;
+        sendStatus: (arg0: number) => any;
+      },
+      next: () => void,
+    ) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header(
+        'Access-Control-Allow-Methods',
+        'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+      );
+      res.header('Access-Control-Allow-Headers', '*');
+
+      if (req.method === 'OPTIONS') {
+        return res.sendStatus(200); // 👈 THIS FIXES PREFLIGHT
+      }
+
+      next();
+    },
+  );
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -25,9 +50,7 @@ async function bootstrap() {
     }),
   );
 
-  // ✅ Prisma shutdown hook
   await app.get(PrismaService).enableShutdownHooks(app);
-
   await app.listen(port, host);
 
   console.log(`🚀 Server running on http://localhost:${port}`);
