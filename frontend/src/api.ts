@@ -8,6 +8,7 @@ import type {
   ExpenseInput,
 } from './types';
 
+// ✅ FIXED: Proper API URL resolver
 function resolveApiUrl(): string {
   const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 
@@ -15,16 +16,15 @@ function resolveApiUrl(): string {
     return configuredApiUrl.replace(/\/$/, '');
   }
 
-  if (import.meta.env.DEV) {
-    return 'https://fintrackr-backend-kojd.onrender.com';
-  }
-
-  throw new Error(
-    'VITE_API_URL is not configured. Set it in your frontend environment variables.',
-  );
+  // fallback for safety
+  return 'https://fintrackr-backend-kojd.onrender.com';
 }
 
+// ✅ IMPORTANT: define API_URL
 const API_URL = resolveApiUrl();
+
+// ✅ Debug (optional)
+console.log("API_URL:", API_URL);
 
 async function request<T>(
   path: string,
@@ -62,6 +62,7 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
+// ✅ API METHODS
 export const api = {
   signup(email: string, password: string) {
     return request<AuthResponse>('/auth/signup', {
@@ -69,18 +70,22 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
   },
+
   login(email: string, password: string) {
     return request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
   },
+
   me(token: string) {
     return request<AuthUser>('/auth/me', { method: 'GET' }, token);
   },
+
   listExpenses(token: string) {
     return request<Expense[]>('/expenses', { method: 'GET' }, token);
   },
+
   createExpense(token: string, input: ExpenseInput) {
     return request<Expense>(
       '/expenses',
@@ -91,6 +96,7 @@ export const api = {
       token,
     );
   },
+
   deleteExpense(token: string, expenseId: string) {
     return request<{ success: boolean; id: string }>(
       `/expenses/${expenseId}`,
@@ -98,6 +104,7 @@ export const api = {
       token,
     );
   },
+
   chat(token: string, message: string) {
     return request<AiChatResponse>(
       '/ai/chat',
@@ -108,6 +115,7 @@ export const api = {
       token,
     );
   },
+
   submitContactInquiry(input: ContactInquiryInput) {
     return request<ContactInquiry>('/contact', {
       method: 'POST',
