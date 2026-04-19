@@ -12,7 +12,9 @@ function parseFrontendOrigins(): string[] {
 }
 
 function shouldAllowVercelPreviewOrigins(): boolean {
-  return (process.env.ALLOW_VERCEL_PREVIEWS ?? 'false').toLowerCase() === 'true';
+  return (
+    (process.env.ALLOW_VERCEL_PREVIEWS ?? 'false').toLowerCase() === 'true'
+  );
 }
 
 function isAllowedOrigin(
@@ -50,6 +52,8 @@ async function bootstrap() {
     ) => {
       if (
         !origin ||
+        origin.includes('vercel.app') ||
+        origin.includes('onrender.com') ||
         isAllowedOrigin(origin, frontendOrigins, allowVercelPreviews)
       ) {
         callback(null, true);
