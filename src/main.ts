@@ -10,11 +10,10 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  // ✅ FIXED CORS (simple + reliable)
+  // ✅ FIXED CORS (WORKS WITH VERCEL + RENDER)
   app.enableCors({
-    origin: ['http://localhost:5173', 'https://fintrackr-frontend.vercel.app'],
+    origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
   });
 
   // ✅ Validation
