@@ -256,7 +256,7 @@ function App() {
             </article>
             <article>
               <span>API</span>
-              <strong>localhost:3000</strong>
+              <strong>https://fintrackr-backend-kojd.onrender.com</strong>
             </article>
           </div>
         </section>
