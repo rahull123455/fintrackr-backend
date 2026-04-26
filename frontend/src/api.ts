@@ -11,23 +11,7 @@ import type {
   SavingsGoalInput,
 } from './types';
 
-// ✅ FIXED: Proper API URL resolver
-function resolveApiUrl(): string {
-  const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-
-  if (configuredApiUrl) {
-    return configuredApiUrl.replace(/\/$/, '');
-  }
-
-  // fallback for safety
-  return 'https://fintrackr-backend-kojd.onrender.com';
-}
-
-// ✅ IMPORTANT: define API_URL
-const API_URL = resolveApiUrl();
-
-// ✅ Debug (optional)
-console.log("API_URL:", API_URL);
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 async function request<T>(
   path: string,
@@ -65,7 +49,6 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-// ✅ API METHODS
 export const api = {
   signup(email: string, password: string) {
     return request<AuthResponse>('/auth/signup', {
@@ -143,7 +126,11 @@ export const api = {
   },
 
   getPrediction(token: string) {
-    return request<AiPredictionResponse>('/ai/predict', { method: 'GET' }, token);
+    return request<AiPredictionResponse>(
+      '/ai/predict',
+      { method: 'GET' },
+      token,
+    );
   },
 
   refreshPrediction(token: string) {
