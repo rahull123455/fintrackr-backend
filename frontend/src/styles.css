@@ -111,6 +111,16 @@ button {
   padding: 1.5rem;
 }
 
+.forecast-panel {
+  grid-column: span 12;
+  padding: 1.5rem;
+}
+
+.savings-panel {
+  grid-column: span 12;
+  padding: 1.5rem;
+}
+
 .ledger {
   grid-column: span 12;
   padding: 1.5rem;
@@ -342,6 +352,164 @@ textarea:disabled {
   display: grid;
   gap: 1rem;
   grid-template-columns: 1.15fr 1fr;
+}
+
+.savings-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1.2fr 0.9fr;
+}
+
+.savings-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.savings-card {
+  padding: 1rem 1.1rem;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 209, 125, 0.08), transparent 35%),
+    rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.savings-progress {
+  margin-top: 0.9rem;
+}
+
+.savings-progress-track {
+  width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.savings-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd17d, var(--accent), var(--accent-2));
+}
+
+.savings-meta-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.savings-meta-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+}
+
+.savings-meta-grid strong {
+  font-size: 1rem;
+}
+
+.savings-form-card {
+  height: fit-content;
+}
+
+.prediction-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.15rem 1.2rem;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(108, 227, 207, 0.12), transparent 38%),
+    linear-gradient(135deg, rgba(255, 146, 100, 0.12), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.prediction-total {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-family: 'Instrument Serif', serif;
+  font-weight: 400;
+}
+
+.prediction-summary {
+  margin: 0.75rem 0 0;
+  max-width: 58ch;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.prediction-actions {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: end;
+}
+
+.prediction-timestamp {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.prediction-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.prediction-item {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.prediction-trend {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-weight: 700;
+}
+
+.prediction-trend-arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.prediction-trend-increasing {
+  color: #ffd17d;
+}
+
+.prediction-trend-decreasing {
+  color: var(--accent-2);
+}
+
+.prediction-trend-stable {
+  color: var(--muted);
+}
+
+.prediction-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.prediction-insights {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.75rem;
+  color: var(--muted);
+  line-height: 1.55;
 }
 
 .chart-card {
@@ -964,6 +1132,8 @@ textarea:disabled {
   .hero,
   .auth-panel,
   .composer,
+  .forecast-panel,
+  .savings-panel,
   .ledger {
     grid-column: 1 / -1;
   }
@@ -999,6 +1169,8 @@ textarea:disabled {
 
   .auth-panel,
   .composer,
+  .forecast-panel,
+  .savings-panel,
   .ledger {
     padding: 1.2rem;
   }
@@ -1007,14 +1179,21 @@ textarea:disabled {
   .grid-two,
   .analytics-grid,
   .insight-grid,
+  .savings-layout,
+  .savings-meta-grid,
   .footer-form-grid {
     grid-template-columns: 1fr;
   }
 
   .expense-main,
+  .prediction-hero,
   .session-card {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .prediction-actions {
+    justify-items: stretch;
   }
 
   .expense-side {

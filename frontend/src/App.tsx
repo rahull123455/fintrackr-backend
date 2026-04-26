@@ -2,7 +2,16 @@ import { FormEvent, useEffect, useState } from 'react';
 import { api } from './api';
 import { FinanceChatbot } from './components/FinanceChatbot';
 import { SiteFooter } from './components/SiteFooter';
-import type { AuthResponse, AuthUser, Expense, ExpenseInput } from './types';
+import type {
+  AiPredictionResponse,
+  AiPredictionTrend,
+  AuthResponse,
+  AuthUser,
+  Expense,
+  ExpenseInput,
+  SavingsGoal,
+  SavingsGoalInput,
+} from './types';
 
 const tokenStorageKey = 'fintrackr-token';
 
@@ -29,6 +38,49 @@ function formatMonthLabel(date: Date) {
   });
 }
 
+function formatPredictionMonth(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number);
+
+  if (!year || !monthNumber) {
+    return month;
+  }
+
+  return new Date(year, monthNumber - 1, 1).toLocaleString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function getTrendArrow(trend: AiPredictionTrend) {
+  switch (trend) {
+    case 'increasing':
+      return '↑';
+    case 'decreasing':
+      return '↓';
+    default:
+      return '→';
+  }
+}
+
+function formatChangePercent(changePercent: number) {
+  if (changePercent === 0) {
+    return '0.0%';
+  }
+
+  return `${changePercent > 0 ? '+' : ''}${changePercent.toFixed(1)}%`;
+}
+
+function formatConfidenceLabel(confidence: string) {
+  return `${confidence.charAt(0).toUpperCase()}${confidence.slice(1)}`;
+}
+
+function sortSavingsGoals(goals: SavingsGoal[]) {
+  return [...goals].sort(
+    (left, right) =>
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  );
+}
+
 function App() {
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [token, setToken] = useState<string | null>(
@@ -45,17 +97,34 @@ function App() {
     spentAt: toLocalDateTimeValue(),
     note: '',
   });
+  const [savingsForm, setSavingsForm] = useState({
+    name: '',
+    targetAmount: '',
+    savedAmount: '',
+    monthlyContribution: '',
+  });
   const [authError, setAuthError] = useState('');
   const [expenseError, setExpenseError] = useState('');
+  const [savingsError, setSavingsError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [expenseLoading, setExpenseLoading] = useState(false);
+  const [savingsLoading, setSavingsLoading] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(Boolean(token));
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+  const [savingsListLoading, setSavingsListLoading] = useState(false);
+  const [prediction, setPrediction] = useState<AiPredictionResponse | null>(
+    null,
+  );
+  const [predictionError, setPredictionError] = useState('');
+  const [predictionLoading, setPredictionLoading] = useState(false);
+  const [predictionRefreshing, setPredictionRefreshing] = useState(false);
 
   useEffect(() => {
     if (!token) {
       setBootstrapping(false);
       setUser(null);
       setExpenses([]);
+      setSavingsGoals([]);
       return;
     }
 
@@ -91,6 +160,96 @@ function App() {
     };
   }, [token]);
 
+  useEffect(() => {
+    if (!token || !user || bootstrapping) {
+      setSavingsGoals([]);
+      setSavingsError('');
+      setSavingsListLoading(false);
+      setSavingsLoading(false);
+      return;
+    }
+
+    const authToken = token;
+    let cancelled = false;
+
+    async function loadSavingsGoals() {
+      setSavingsListLoading(true);
+      setSavingsError('');
+
+      try {
+        const nextGoals = await api.listSavingsGoals(authToken);
+
+        if (!cancelled) {
+          setSavingsGoals(sortSavingsGoals(nextGoals));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSavingsGoals([]);
+          setSavingsError(
+            error instanceof Error
+              ? error.message
+              : 'Could not load your savings goals',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setSavingsListLoading(false);
+        }
+      }
+    }
+
+    void loadSavingsGoals();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bootstrapping, token, user]);
+
+  useEffect(() => {
+    if (!token || !user || bootstrapping) {
+      setPrediction(null);
+      setPredictionError('');
+      setPredictionLoading(false);
+      setPredictionRefreshing(false);
+      return;
+    }
+
+    const authToken = token;
+    let cancelled = false;
+
+    async function loadPrediction() {
+      setPredictionLoading(true);
+      setPredictionError('');
+
+      try {
+        const nextPrediction = await api.getPrediction(authToken);
+
+        if (!cancelled) {
+          setPrediction(nextPrediction);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPrediction(null);
+          setPredictionError(
+            error instanceof Error
+              ? error.message
+              : 'Could not load your AI prediction',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setPredictionLoading(false);
+        }
+      }
+    }
+
+    void loadPrediction();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bootstrapping, token, user]);
+
   function persistAuth(auth: AuthResponse) {
     window.localStorage.setItem(tokenStorageKey, auth.accessToken);
     setToken(auth.accessToken);
@@ -105,8 +264,12 @@ function App() {
     setToken(null);
     setUser(null);
     setExpenses([]);
+    setSavingsGoals([]);
+    setPrediction(null);
     setAuthError('');
     setExpenseError('');
+    setSavingsError('');
+    setPredictionError('');
   }
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
@@ -181,6 +344,85 @@ function App() {
       setExpenseError(
         error instanceof Error ? error.message : 'Could not delete expense',
       );
+    }
+  }
+
+  async function handleSavingsSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token) {
+      return;
+    }
+
+    setSavingsLoading(true);
+    setSavingsError('');
+
+    try {
+      const payload: SavingsGoalInput = {
+        name: savingsForm.name.trim(),
+        targetAmount: Number(savingsForm.targetAmount),
+        savedAmount: savingsForm.savedAmount
+          ? Number(savingsForm.savedAmount)
+          : undefined,
+        monthlyContribution: savingsForm.monthlyContribution
+          ? Number(savingsForm.monthlyContribution)
+          : undefined,
+      };
+
+      const created = await api.createSavingsGoal(token, payload);
+      setSavingsGoals((current) => sortSavingsGoals([created, ...current]));
+      setSavingsForm({
+        name: '',
+        targetAmount: '',
+        savedAmount: '',
+        monthlyContribution: '',
+      });
+    } catch (error) {
+      setSavingsError(
+        error instanceof Error ? error.message : 'Could not create savings goal',
+      );
+    } finally {
+      setSavingsLoading(false);
+    }
+  }
+
+  async function handleDeleteSavingsGoal(goalId: string) {
+    if (!token) {
+      return;
+    }
+
+    try {
+      await api.deleteSavingsGoal(token, goalId);
+      setSavingsGoals((current) =>
+        current.filter((goal) => goal.id !== goalId),
+      );
+    } catch (error) {
+      setSavingsError(
+        error instanceof Error ? error.message : 'Could not delete savings goal',
+      );
+    }
+  }
+
+  async function handleRefreshPrediction() {
+    if (!token || !user || predictionRefreshing) {
+      return;
+    }
+
+    const authToken = token;
+    setPredictionRefreshing(true);
+    setPredictionError('');
+
+    try {
+      const nextPrediction = await api.refreshPrediction(authToken);
+      setPrediction(nextPrediction);
+    } catch (error) {
+      setPredictionError(
+        error instanceof Error
+          ? error.message
+          : 'Could not refresh your AI prediction',
+      );
+    } finally {
+      setPredictionRefreshing(false);
     }
   }
 
@@ -541,6 +783,316 @@ function App() {
               </div>
             </div>
           )}
+        </section>
+
+        <section className="panel forecast-panel">
+          <div className="panel-header">
+            <p className="panel-kicker">AI Prediction</p>
+            <h2>Next month spending outlook</h2>
+          </div>
+
+          {bootstrapping ? (
+            <p className="muted-copy">Generating your forecast...</p>
+          ) : !user ? (
+            <p className="muted-copy">
+              Sign in to see an AI forecast for next month&apos;s expenses.
+            </p>
+          ) : predictionLoading && !prediction ? (
+            <p className="muted-copy">Loading your AI prediction panel...</p>
+          ) : predictionError && !prediction ? (
+            <div className="stack">
+              <p className="error-text">{predictionError}</p>
+              <button
+                className="ghost-button"
+                disabled={predictionRefreshing}
+                onClick={() => void handleRefreshPrediction()}
+                type="button"
+              >
+                {predictionRefreshing ? 'Refreshing...' : 'Refresh prediction'}
+              </button>
+            </div>
+          ) : prediction ? (
+            <div className="analytics-stack">
+              <div className="prediction-hero">
+                <div>
+                  <p className="session-label">
+                    Predicted total for {formatPredictionMonth(prediction.month)}
+                  </p>
+                  <strong className="prediction-total">
+                    ${prediction.predictedTotal.toFixed(2)}
+                  </strong>
+                  <p className="prediction-summary">{prediction.summary}</p>
+                </div>
+
+                <div className="prediction-actions">
+                  <span className="prediction-timestamp">
+                    Updated {new Date(prediction.generatedAt).toLocaleString()}
+                  </span>
+                  <button
+                    className="ghost-button"
+                    disabled={predictionLoading || predictionRefreshing}
+                    onClick={() => void handleRefreshPrediction()}
+                    type="button"
+                  >
+                    {predictionRefreshing ? 'Refreshing...' : 'Refresh prediction'}
+                  </button>
+                </div>
+              </div>
+
+              {predictionError ? (
+                <p className="error-text">{predictionError}</p>
+              ) : null}
+
+              <div className="insight-grid">
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <h3>Category predictions</h3>
+                    <span>{prediction.categories.length} categories</span>
+                  </div>
+
+                  {prediction.categories.length === 0 ? (
+                    <p className="muted-copy">
+                      No category forecast is available yet.
+                    </p>
+                  ) : (
+                    <div className="prediction-list">
+                      {prediction.categories.map((category) => (
+                        <article
+                          className="prediction-item"
+                          key={`${prediction.month}-${category.category}`}
+                        >
+                          <div className="bar-copy">
+                            <div className="prediction-trend">
+                              <span
+                                className={`prediction-trend-arrow prediction-trend-${category.trend}`}
+                              >
+                                {getTrendArrow(category.trend)}
+                              </span>
+                              <span>{category.category}</span>
+                            </div>
+                            <strong>
+                              ${category.predictedAmount.toFixed(2)}
+                            </strong>
+                          </div>
+
+                          <div className="prediction-meta">
+                            <span>{formatChangePercent(category.changePercent)}</span>
+                            <span>
+                              {formatConfidenceLabel(category.confidence)} confidence
+                            </span>
+                          </div>
+
+                          <p className="expense-note">{category.rationale}</p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <h3>Insights</h3>
+                    <span>{prediction.insights.length} notes</span>
+                  </div>
+
+                  {prediction.insights.length === 0 ? (
+                    <p className="muted-copy">
+                      No additional insights are available yet.
+                    </p>
+                  ) : (
+                    <ul className="prediction-insights">
+                      {prediction.insights.map((insight, index) => (
+                        <li key={`${prediction.generatedAt}-${index}`}>
+                          {insight}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="muted-copy">
+              No prediction is available yet. Refresh to generate one.
+            </p>
+          )}
+        </section>
+
+        <section className="panel savings-panel">
+          <div className="panel-header">
+            <p className="panel-kicker">Savings Goals</p>
+            <h2>Build toward your next milestone</h2>
+          </div>
+
+          <div className="savings-layout">
+            <div className="savings-list">
+              {bootstrapping ? (
+                <p className="muted-copy">Loading your savings plan...</p>
+              ) : !user ? (
+                <p className="muted-copy">
+                  Sign in to create and track savings goals.
+                </p>
+              ) : savingsListLoading ? (
+                <p className="muted-copy">Fetching your savings goals...</p>
+              ) : savingsError && savingsGoals.length === 0 ? (
+                <p className="error-text">{savingsError}</p>
+              ) : savingsGoals.length === 0 ? (
+                <p className="muted-copy">
+                  No goals yet. Add your first savings target.
+                </p>
+              ) : (
+                savingsGoals.map((goal) => (
+                  <article className="savings-card" key={goal.id}>
+                    <div className="expense-main">
+                      <div>
+                        <p className="expense-title">{goal.name}</p>
+                        <p className="expense-meta">
+                          ${goal.savedAmount.toFixed(2)} saved of $
+                          {goal.targetAmount.toFixed(2)}
+                        </p>
+                      </div>
+
+                      <div className="expense-side">
+                        <strong>{goal.progressPercent.toFixed(0)}%</strong>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void handleDeleteSavingsGoal(goal.id)}
+                          type="button"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="savings-progress">
+                      <div className="savings-progress-track">
+                        <div
+                          className="savings-progress-fill"
+                          style={{
+                            width: `${Math.max(
+                              Math.min(goal.progressPercent, 100),
+                              goal.progressPercent > 0 ? 6 : 0,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="savings-meta-grid">
+                      <div>
+                        <span>Remaining</span>
+                        <strong>${goal.remaining.toFixed(2)}</strong>
+                      </div>
+                      <div>
+                        <span>Monthly contribution</span>
+                        <strong>${goal.monthlyContribution.toFixed(2)}</strong>
+                      </div>
+                      <div>
+                        <span>Months to goal</span>
+                        <strong>
+                          {goal.isComplete
+                            ? 'Complete'
+                            : goal.monthsToGoal === null
+                              ? 'No timeline'
+                              : `${goal.monthsToGoal} mo`}
+                        </strong>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+
+            <div className="chart-card savings-form-card">
+              <div className="chart-header">
+                <h3>Add Goal</h3>
+                <span>Start a new target</span>
+              </div>
+
+              <form className="stack" onSubmit={handleSavingsSubmit}>
+                <label>
+                  <span>Name</span>
+                  <input
+                    disabled={!user || bootstrapping || savingsLoading}
+                    onChange={(event) =>
+                      setSavingsForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                    placeholder="Emergency Fund"
+                    value={savingsForm.name}
+                  />
+                </label>
+
+                <label>
+                  <span>Target amount</span>
+                  <input
+                    disabled={!user || bootstrapping || savingsLoading}
+                    inputMode="decimal"
+                    min="0.01"
+                    onChange={(event) =>
+                      setSavingsForm((current) => ({
+                        ...current,
+                        targetAmount: event.target.value,
+                      }))
+                    }
+                    placeholder="10000"
+                    step="0.01"
+                    value={savingsForm.targetAmount}
+                  />
+                </label>
+
+                <div className="grid-two">
+                  <label>
+                    <span>Saved amount</span>
+                    <input
+                      disabled={!user || bootstrapping || savingsLoading}
+                      inputMode="decimal"
+                      min="0"
+                      onChange={(event) =>
+                        setSavingsForm((current) => ({
+                          ...current,
+                          savedAmount: event.target.value,
+                        }))
+                      }
+                      placeholder="2000"
+                      step="0.01"
+                      value={savingsForm.savedAmount}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Monthly contribution</span>
+                    <input
+                      disabled={!user || bootstrapping || savingsLoading}
+                      inputMode="decimal"
+                      min="0"
+                      onChange={(event) =>
+                        setSavingsForm((current) => ({
+                          ...current,
+                          monthlyContribution: event.target.value,
+                        }))
+                      }
+                      placeholder="500"
+                      step="0.01"
+                      value={savingsForm.monthlyContribution}
+                    />
+                  </label>
+                </div>
+
+                {savingsError ? <p className="error-text">{savingsError}</p> : null}
+
+                <button
+                  className="primary-button"
+                  disabled={!user || bootstrapping || savingsLoading}
+                  type="submit"
+                >
+                  {savingsLoading ? 'Saving...' : 'Add Goal'}
+                </button>
+              </form>
+            </div>
+          </div>
         </section>
 
         <section className="panel ledger">

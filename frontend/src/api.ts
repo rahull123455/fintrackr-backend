@@ -1,4 +1,5 @@
 import type {
+  AiPredictionResponse,
   AiChatResponse,
   ContactInquiry,
   ContactInquiryInput,
@@ -6,6 +7,8 @@ import type {
   AuthUser,
   Expense,
   ExpenseInput,
+  SavingsGoal,
+  SavingsGoalInput,
 } from './types';
 
 // ✅ FIXED: Proper API URL resolver
@@ -97,6 +100,29 @@ export const api = {
     );
   },
 
+  listSavingsGoals(token: string) {
+    return request<SavingsGoal[]>('/savings', { method: 'GET' }, token);
+  },
+
+  createSavingsGoal(token: string, input: SavingsGoalInput) {
+    return request<SavingsGoal>(
+      '/savings',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      token,
+    );
+  },
+
+  deleteSavingsGoal(token: string, goalId: string) {
+    return request<{ success: boolean; id: string }>(
+      `/savings/${goalId}`,
+      { method: 'DELETE' },
+      token,
+    );
+  },
+
   deleteExpense(token: string, expenseId: string) {
     return request<{ success: boolean; id: string }>(
       `/expenses/${expenseId}`,
@@ -112,6 +138,18 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ message }),
       },
+      token,
+    );
+  },
+
+  getPrediction(token: string) {
+    return request<AiPredictionResponse>('/ai/predict', { method: 'GET' }, token);
+  },
+
+  refreshPrediction(token: string) {
+    return request<AiPredictionResponse>(
+      '/ai/predict/refresh',
+      { method: 'POST' },
       token,
     );
   },
