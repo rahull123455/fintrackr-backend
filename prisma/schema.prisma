@@ -8,12 +8,14 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String         @id @default(cuid())
+  email        String         @unique
   passwordHash String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
   expenses     Expense[]
+  savingsGoals SavingsGoal[]
+  aiPrediction AiPrediction?
 }
 
 model Expense {
@@ -43,4 +45,28 @@ model ContactInquiry {
 
   @@index([createdAt])
   @@index([email])
+}
+
+model SavingsGoal {
+  id                  String   @id @default(cuid())
+  userId              String
+  name                String
+  targetAmount        Decimal  @db.Decimal(10, 2)
+  savedAmount         Decimal  @db.Decimal(10, 2) @default(0)
+  monthlyContribution Decimal  @db.Decimal(10, 2) @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AiPrediction {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  month      String
+  prediction Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { PredictionService } from '../ai/prediction.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
@@ -21,7 +22,10 @@ type ExpenseRecord = {
 
 @Injectable()
 export class ExpensesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly predictionService: PredictionService,
+  ) {}
 
   async create(userId: string, createExpenseDto: CreateExpenseDto) {
     const expense = await this.prisma.expense.create({
@@ -35,6 +39,7 @@ export class ExpensesService {
       },
     });
 
+    await this.predictionService.invalidateCache(userId);
     return this.serializeExpense(expense);
   }
 

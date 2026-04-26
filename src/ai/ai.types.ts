@@ -1,9 +1,3 @@
-export type AuthenticatedRequest = {
-  user: {
-    id: string;
-  };
-};
-
 export type ExpenseCategoryInsight = {
   category: string;
   amount: number;
